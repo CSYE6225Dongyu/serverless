@@ -2,4 +2,5 @@
 # python-dotenv==1.0.0
 sendgrid==6.11.0
 pymysql==1.0.3
+requests==2.32.3
 # ujson
