@@ -15,9 +15,9 @@ FROM_EMAIL = None
 def get_secrets():
     """Retrieve secrets from AWS Secrets Manager."""
     secret_name = os.getenv("SECRET_NAME", "my-lambda-secrets")
-    region_name = os.getenv("AWS_REGION", "us-east-1")
+    region_name = os.getenv("AWS_WEBAPP_REGION", "us-east-1")
     
-    session = boto3.session.Session()
+    session = boto3.session.Session() # type: ignore run Ok in the lambda aws
     client = session.client(service_name="secretsmanager", region_name=region_name)
     
     try:
@@ -45,7 +45,7 @@ except Exception as e:
 
 def generate_verification_link(token):
     """generate verifie link"""
-    verification_link = f"http://{Domain_Name}/verify/{token}"
+    verification_link = f"https://{Domain_Name}/verify/{token}"
     return verification_link
 
 def send_email(to_email,subject, html_content):
