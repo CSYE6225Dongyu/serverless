@@ -89,8 +89,6 @@ def lambda_handler(event, context):
     else:
         print("FROM_EMAIL is missing or not set.")
 
-
-
     try:
         # Iterate over SNS records
         for record in event['Records']:
