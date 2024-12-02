@@ -4,15 +4,48 @@ from datetime import datetime
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from urllib.parse import urlencode
+import boto3
+import base64
 
-# use env variables
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-Domain_Name = os.getenv("Domain_Name", "demo.csye6225dongyu.me")
-FROM_EMAIL: str = os.getenv("FROM_EMAIL", "no-reply@demo.csye6225dongyu.me")
+# Initialize global variables
+SENDGRID_API_KEY = None
+Domain_Name = None
+FROM_EMAIL = None
+
+def get_secrets():
+    """Retrieve secrets from AWS Secrets Manager."""
+    secret_name = os.getenv("SECRET_NAME", "my-lambda-secrets")
+    region_name = os.getenv("AWS_WEBAPP_REGION", "us-east-1")
+    
+    session = boto3.session.Session() # type: ignore run Ok in the lambda aws
+    client = session.client(service_name="secretsmanager", region_name=region_name)
+    
+    try:
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        
+        if 'SecretString' in get_secret_value_response:
+            secrets = json.loads(get_secret_value_response['SecretString'])
+        else:
+            secrets = json.loads(base64.b64decode(get_secret_value_response['SecretBinary']))
+        
+        return secrets
+    except Exception as e:
+        print(f"Error retrieving secrets: {e}")
+        raise
+
+# Load secrets into global variables
+try:
+    secrets = get_secrets()
+    SENDGRID_API_KEY = secrets.get("sendgrid_api_key")
+    Domain_Name = secrets.get("domain_name", "demo.csye6225dongyu.me")
+    FROM_EMAIL = secrets.get("from_email", "no-reply@demo.csye6225dongyu.me")
+except Exception as e:
+    print("Failed to initialize secrets. Exiting.")
+    raise
 
 def generate_verification_link(token):
     """generate verifie link"""
-    verification_link = f"http://{Domain_Name}/verify/{token}"
+    verification_link = f"https://{Domain_Name}/verify/{token}"
     return verification_link
 
 def send_email(to_email,subject, html_content):
@@ -55,8 +88,6 @@ def lambda_handler(event, context):
         print(f"FROM_EMAIL: {FROM_EMAIL}")
     else:
         print("FROM_EMAIL is missing or not set.")
-
-
 
     try:
         # Iterate over SNS records
@@ -128,8 +159,6 @@ def lambda_handler(event, context):
             "body": json.dumps({"error": "An error occurred while processing the SNS event."})
         }
     
-
-
 import requests
 
 def test_connectivity():
@@ -139,9 +168,3 @@ def test_connectivity():
     except Exception as e:
         print(f"Error during connectivity test: {e}")
 
-
-if __name__ == "__main__":
-    with open("event.json", "r") as file:
-        test_event = json.load(file)
-    response = lambda_handler(test_event, "")
-    print("Lambda Response:", json.dumps(response, indent=2))
